@@ -241,7 +241,7 @@ programCommand('verify')
               );
               cacheItem.onChain = false;
               allGood = false;
-            } else if ("goodlink" in cacheItem && cacheItem.link != null && cacheItem.goodlink == cacheItem.link) { 
+            } else if ("goodlink" in cacheItem && cacheItem.link != null && cacheItem.goodlink == cacheItem.link) {
               log.info(
                 'Name',
                 name,
