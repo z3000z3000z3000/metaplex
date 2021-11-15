@@ -69,7 +69,8 @@ export const createMetadata = async (metadataLink: string): Promise<Data> => {
       new Creator({
         address: creator.address,
         share: creator.share,
-        verified: 1,
+        verified: 0,
+        // verified: 1,
       }),
   );
 
