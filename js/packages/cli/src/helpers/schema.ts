@@ -54,10 +54,12 @@ export class CreateMetadataArgs {
   instruction: number = 0;
   data: Data;
   isMutable: boolean;
+  //  primarySaleHappened: boolean | null;
 
   constructor(args: { data: Data; isMutable: boolean }) {
     this.data = args.data;
     this.isMutable = args.isMutable;
+    //    this.primarySaleHappened = true;
   }
 }
 

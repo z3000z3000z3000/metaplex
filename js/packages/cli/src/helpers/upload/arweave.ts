@@ -73,6 +73,8 @@ export async function arweaveUpload(
     manifestBuffer.length,
     estimatedManifestSize,
   ]);
+  log.debug('json.len = ', manifestBuffer.length);
+  log.debug('json = ', manifestBuffer);
   log.debug(`lamport cost to store ${image}: ${storageCost}`);
 
   const instructions = [
@@ -101,18 +103,17 @@ export async function arweaveUpload(
   });
   data.append('file[]', manifestBuffer, 'metadata.json');
 
+  //  log.debug("data = ", data);
   const result = await upload(data, manifest, index);
 
   const metadataFile = result.messages?.find(
     m => m.filename === 'manifest.json',
   );
-  const imageFile = result.messages?.find(
-    m => m.filename === 'image.png',
-  );
+  const imageFile = result.messages?.find(m => m.filename === 'image.png');
   if (metadataFile?.transactionId) {
     const link = `https://arweave.net/${metadataFile.transactionId}`;
     const imageLink = `https://arweave.net/${imageFile.transactionId}?ext=png`;
-    log.debug(`File uploaded: ${link}`);
+    log.debug(`File uploaded: ${link} ${imageLink}`);
     return [link, imageLink];
   } else {
     // @todo improve

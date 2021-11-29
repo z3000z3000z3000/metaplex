@@ -6,20 +6,34 @@ import { PublicKey } from '@solana/web3.js';
 import { arweaveUpload } from './helpers/upload/arweave';
 import fs from 'fs';
 import { loadCandyProgram, loadWalletKey } from './helpers/accounts';
+import fetch from 'node-fetch';
 
 program.version('0.0.1');
 log.setLevel('info');
 
 programCommand('mint')
   .option('-u, --url <string>', 'metadata url')
-  .option('-p, --picpath <path>', `Picture`, '')
-  .option('-j, --jsonpath <path>', `json file`, '')
+  .option('-p, --picpath <path>', 'Picture', '')
+  .option('-j, --jsonpath <path>', 'json file', '')
+  .option('-o, --owner <pubkey>', '', '')
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   .action(async (directory, cmd) => {
-    const { keypair, env, url, picpath, jsonpath, rpcUrl } = cmd.opts();
+    const { keypair, env, url, picpath, jsonpath, owner, rpcUrl } = cmd.opts();
     const solConnection = new web3.Connection(web3.clusterApiUrl(env));
     const walletKeyPair = loadWalletKey(keypair);
     let link = url;
+    //    let ll = "https://arweave.net/VGa-4DbXKuPdff0iIWpGUPm-NfhKKku-ai-YmciY0jo";
+    //    let metadata = await (await fetch(ll, { method: 'GET' })).json();
+    //          if (
+    //            !metadata.name ||
+    //            !metadata.image ||
+    //            isNaN(metadata.seller_fee_basis_points) ||
+    //            !metadata.properties ||
+    //            !Array.isArray(metadata.properties.creators)
+    //          ) {
+    //            log.error('Invalid metadata file', metadata);
+    //          }
+    //    log.info("metadata:", metadata);
     if (picpath !== '' && jsonpath != '') {
       log.info('pic = ', picpath);
       log.info('json = ', jsonpath);
@@ -30,7 +44,8 @@ programCommand('mint')
       const manifest = JSON.parse(manifestContent);
 
       const manifestBuffer = Buffer.from(JSON.stringify(manifest));
-      link = await arweaveUpload(
+      let imgLink;
+      [link, imgLink] = await arweaveUpload(
         walletKeyPair,
         anchorProgram,
         env,
@@ -39,10 +54,40 @@ programCommand('mint')
         manifest,
         0,
       );
+      console.log('imglink = ', imgLink);
     } else if (url == '') {
       throw new Error('Set url or pic & json');
     }
-    await mintNFT(solConnection, walletKeyPair, link);
+
+    // ...
+    let tosleep = 1000;
+    let waitingTime = 0;
+    for (let it = 0; it < 14; it++) {
+      let metadata;
+      try {
+        log.info('>>>', it, ' link=', link, ', waiting = ', waitingTime);
+        metadata = await (await fetch(link, { method: 'GET' })).json();
+        if (
+          !metadata.name ||
+          !metadata.image ||
+          isNaN(metadata.seller_fee_basis_points) ||
+          !metadata.properties ||
+          !Array.isArray(metadata.properties.creators)
+        ) {
+          log.error('Invalid metadata file', metadata);
+        } else {
+          log.info('metadata file ok:', metadata);
+          break;
+        }
+      } catch (e) {
+        log.debug(e);
+        log.error('Invalid metadata at', link, 'just wait...');
+      }
+      await new Promise(f => setTimeout(f, tosleep));
+      waitingTime += tosleep;
+      tosleep *= 2;
+    }
+    await mintNFT(solConnection, owner, walletKeyPair, link);
   });
 
 programCommand('update-metadata')

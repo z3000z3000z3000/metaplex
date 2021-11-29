@@ -64,12 +64,13 @@ export const createMetadata = async (metadataLink: string): Promise<Data> => {
     return;
   }
 
+  const faddr = metaCreators[0].address;
   const creators = metaCreators.map(
     creator =>
       new Creator({
         address: creator.address,
         share: creator.share,
-        verified: 0,
+        verified: faddr == creator.address ? 1 : 0,
         // verified: 1,
       }),
   );
@@ -85,6 +86,7 @@ export const createMetadata = async (metadataLink: string): Promise<Data> => {
 
 export const mintNFT = async (
   connection: Connection,
+  owner: String,
   walletKeypair: Keypair,
   metadataLink: string,
   mutableMetadata: boolean = true,
@@ -101,6 +103,14 @@ export const mintNFT = async (
   const mintRent = await connection.getMinimumBalanceForRentExemption(
     MintLayout.span,
   );
+
+  let ownPubKey;
+  if (owner != '') {
+    ownPubKey = new PublicKey(owner);
+  } else {
+    ownPubKey = wallet.publicKey;
+  }
+  console.log('owner = ', owner);
 
   // Generate a mint
   const mint = anchor.web3.Keypair.generate();
@@ -127,14 +137,14 @@ export const mintNFT = async (
   );
 
   const userTokenAccoutAddress = await getTokenWallet(
-    wallet.publicKey,
+    ownPubKey, //wallet.publicKey,
     mint.publicKey,
   );
   instructions.push(
     createAssociatedTokenAccountInstruction(
       userTokenAccoutAddress,
       wallet.publicKey,
-      wallet.publicKey,
+      ownPubKey, //wallet.publicKey,
       mint.publicKey,
     ),
   );
@@ -158,6 +168,22 @@ export const mintNFT = async (
       txnData,
     ),
   );
+
+  // 2m
+  const valueUpd = new UpdateMetadataArgs({
+    data,
+    primarySaleHappened: true,
+  });
+  const txnDataUpd = Buffer.from(serialize(METADATA_SCHEMA, valueUpd));
+
+  instructions.push(
+    createUpdateMetadataInstruction(
+      metadataAccount,
+      walletKeypair.publicKey,
+      txnDataUpd,
+    ),
+  );
+  // ..
 
   instructions.push(
     Token.createMintToInstruction(
@@ -207,6 +233,8 @@ export const mintNFT = async (
   // Force wait for max confirmations
   await connection.getParsedConfirmedTransaction(res.txid, 'confirmed');
   log.info('NFT created', res.txid);
+  log.info('metadataAccount: ', metadataAccount.toBase58());
+  log.info('mint: ', mint.publicKey.toBase58());
   return metadataAccount;
 };
 
