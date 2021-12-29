@@ -32,7 +32,10 @@ import { generateConfigurations } from './commands/generateConfigurations';
 import { loadCache, saveCache } from './helpers/cache';
 import { mint } from './commands/mint';
 import { signMetadata } from './commands/sign';
-import { getAccountsByCreatorAddress, signAllMetadataFromCandyMachine } from './commands/signAll';
+import {
+  getAccountsByCreatorAddress,
+  signAllMetadataFromCandyMachine,
+} from './commands/signAll';
 import log from 'loglevel';
 import { createMetadataFiles } from './helpers/metadata';
 import { createGenerativeArt } from './commands/createArt';
@@ -236,19 +239,17 @@ programCommand('verify')
               //leaving here for debugging reasons, but it's pretty useless. if the first upload fails - all others are wrong
               log.info(
                 `Name (${name}) or uri (${uri}) didnt match cache values of (${cacheItem.name})` +
-                `and (${cacheItem.link}). marking to rerun for image`,
+                  `and (${cacheItem.link}). marking to rerun for image`,
                 key,
               );
               cacheItem.onChain = false;
               allGood = false;
-            } else if ("goodlink" in cacheItem && cacheItem.link != null && cacheItem.goodlink == cacheItem.link) {
-              log.info(
-                'Name',
-                name,
-                'with',
-                uri,
-                'has checked goodlink',
-              );
+            } else if (
+              'goodlink' in cacheItem &&
+              cacheItem.link != null &&
+              cacheItem.goodlink == cacheItem.link
+            ) {
+              log.info('Name', name, 'with', uri, 'has checked goodlink');
             } else {
               let json;
               try {
@@ -539,6 +540,7 @@ programCommand('create_candy_machine')
     '-r, --rpc-url <string>',
     'custom rpc url since this is a heavy command',
   )
+  .option('--uuid <string>', 'custom uuid', '')
   .action(async (directory, cmd) => {
     const {
       keypair,
@@ -549,6 +551,7 @@ programCommand('create_candy_machine')
       splTokenAccount,
       solTreasuryAccount,
       rpcUrl,
+      uuid,
     } = cmd.opts();
 
     let parsedPrice = parsePrice(price);
@@ -556,7 +559,10 @@ programCommand('create_candy_machine')
 
     const walletKeyPair = loadWalletKey(keypair);
     const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
-
+    let configUuid = uuid;
+    if (configUuid == '') {
+      configUuid = cacheContent.program.uuid;
+    }
     let wallet = walletKeyPair.publicKey;
     const remainingAccounts = [];
     if (splToken || splTokenAccount) {
@@ -615,12 +621,12 @@ programCommand('create_candy_machine')
     const config = new PublicKey(cacheContent.program.config);
     const [candyMachine, bump] = await getCandyMachineAddress(
       config,
-      cacheContent.program.uuid,
+      configUuid, //cacheContent.program.uuid,
     );
     await anchorProgram.rpc.initializeCandyMachine(
       bump,
       {
-        uuid: cacheContent.program.uuid,
+        uuid: configUuid, //cacheContent.program.uuid,
         price: new anchor.BN(parsedPrice),
         itemsAvailable: new anchor.BN(Object.keys(cacheContent.items).length),
         goLiveDate: null,
@@ -644,7 +650,67 @@ programCommand('create_candy_machine')
     log.info(
       `create_candy_machine finished. candy machine pubkey: ${candyMachine.toBase58()}`,
     );
+    log.info(
+      'cacheContent.candyMachineAddress: ',
+      cacheContent.candyMachineAddress,
+    );
   });
+
+programCommand('update_candy_machine_debug').action(async (directory, cmd) => {
+  const { keypair, env, rpcUrl, cacheName } = cmd.opts();
+  const cacheContent = loadCache(cacheName, env);
+  console.log('cacheContent = ', cacheContent);
+
+  // const secondsSinceEpoch = date ? parseDate(date) : null;
+  // const lamports = price ? parsePrice(price) : null;
+  // const newAuthorityKey = newAuthority ? new PublicKey(newAuthority) : null;
+
+  const walletKeyPair = loadWalletKey(keypair);
+  const anchorProgram = await loadCandyProgram(walletKeyPair, env, rpcUrl);
+
+  //const candyMachine = new PublicKey(cacheContent.candyMachineAddress);
+
+  console.log('RPC = ', anchorProgram.rpc);
+  console.log('RPC = ', anchorProgram.rpc.withdrawFunds);
+  console.log('RPC = ', anchorProgram.rpc.mintNft);
+
+  // if (lamports || secondsSinceEpoch) {
+  //   const tx = await anchorProgram.rpc.updateCandyMachine(
+  //       lamports ? new anchor.BN(lamports) : null,
+  //       secondsSinceEpoch ? new anchor.BN(secondsSinceEpoch) : null,
+  //       {
+  //         accounts: {
+  //           candyMachine,
+  //           authority: walletKeyPair.publicKey,
+  //         },
+  //       },
+  //   );
+  //
+  //   cacheContent.startDate = secondsSinceEpoch;
+  //   if (date)
+  //     log.info(
+  //         ` - updated startDate timestamp: ${secondsSinceEpoch} (${date})`,
+  //     );
+  //   if (lamports)
+  //     log.info(` - updated price: ${lamports} lamports (${price} SOL)`);
+  //   log.info('update_candy_machine finished', tx);
+  // }
+  //
+  // if (newAuthorityKey) {
+  //   const tx = await anchorProgram.rpc.updateAuthority(newAuthorityKey, {
+  //     accounts: {
+  //       candyMachine,
+  //       authority: walletKeyPair.publicKey,
+  //     },
+  //   });
+  //
+  //   cacheContent.authority = newAuthorityKey.toBase58();
+  //   log.info(` - updated authority: ${newAuthorityKey.toBase58()}`);
+  //   log.info('update_authority finished', tx);
+  // }
+
+  //saveCache(cacheName, env, cacheContent);
+});
 
 programCommand('update_candy_machine')
   .option(
@@ -725,15 +791,38 @@ programCommand('mint_one_token')
       configAddress,
       cacheContent.program.uuid,
       rpcUrl,
+      null,
     );
 
     log.info('mint_one_token finished', tx);
   });
 
+programCommand('mint_one_token2')
+  .option(
+    '-r, --rpc-url <string>',
+    'custom rpc url since this is a heavy command',
+  )
+  .action(async (directory, cmd) => {
+    const { keypair, env, cacheName, rpcUrl } = cmd.opts();
+
+    const cacheContent = loadCache(cacheName, env);
+    const configAddress = new PublicKey(cacheContent.program.config);
+    const candyAddress = new PublicKey(cacheContent.candyMachineAddress);
+    const tx = await mint(
+      keypair,
+      env,
+      configAddress,
+      '',
+      rpcUrl,
+      candyAddress,
+    );
+
+    log.info('mint_one_token finished', tx);
+  });
 programCommand('mint_tokens')
   .option('-n, --number <number>', 'Number of tokens to mint', '1')
   .action(async (directory, cmd) => {
-    const {keypair, env, cacheName, number, rpcUrl} = cmd.opts();
+    const { keypair, env, cacheName, number, rpcUrl } = cmd.opts();
 
     const parsedNumber = parseInt(number);
 
@@ -746,11 +835,12 @@ programCommand('mint_tokens')
         configAddress,
         cacheContent.program.uuid,
         rpcUrl,
+        null,
       );
       log.info(`token ${i} minted`);
     }
 
-    log.info(`minted ${parsedNumber} tokens`)
+    log.info(`minted ${parsedNumber} tokens`);
   });
 
 programCommand('sign')
@@ -798,21 +888,23 @@ programCommand('sign_all')
     );
   });
 
-programCommand('get_all_mint_addresses')
-  .action(async (directory, cmd) => {
-    const { env, cacheName, keypair} = cmd.opts();
+programCommand('get_all_mint_addresses').action(async (directory, cmd) => {
+  const { env, cacheName, keypair } = cmd.opts();
 
-    const cacheContent = loadCache(cacheName, env);
-    const walletKeyPair = loadWalletKey(keypair);
-    const anchorProgram = await loadCandyProgram(walletKeyPair, env);
+  const cacheContent = loadCache(cacheName, env);
+  const walletKeyPair = loadWalletKey(keypair);
+  const anchorProgram = await loadCandyProgram(walletKeyPair, env);
 
-    const accountsByCreatorAddress = await getAccountsByCreatorAddress(cacheContent.candyMachineAddress, anchorProgram.provider.connection);
-    const addresses = accountsByCreatorAddress.map(it => {
-      return new PublicKey(it[0].mint).toBase58()
-    });
-
-    console.log(JSON.stringify(addresses, null, 2))
+  const accountsByCreatorAddress = await getAccountsByCreatorAddress(
+    cacheContent.candyMachineAddress,
+    anchorProgram.provider.connection,
+  );
+  const addresses = accountsByCreatorAddress.map(it => {
+    return new PublicKey(it[0].mint).toBase58();
   });
+
+  console.log(JSON.stringify(addresses, null, 2));
+});
 
 programCommand('generate_art_configurations')
   .argument('<directory>', 'Directory containing traits named from 0-n', val =>

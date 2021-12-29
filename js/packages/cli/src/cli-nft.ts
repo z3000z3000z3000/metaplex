@@ -19,7 +19,10 @@ programCommand('mint')
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   .action(async (directory, cmd) => {
     const { keypair, env, url, picpath, jsonpath, owner, rpcUrl } = cmd.opts();
-    const solConnection = new web3.Connection(web3.clusterApiUrl(env));
+    if (rpcUrl) console.log('USING CUSTOM URL', rpcUrl);
+    const solConnection = new web3.Connection(
+      rpcUrl || web3.clusterApiUrl(env),
+    );
     const walletKeyPair = loadWalletKey(keypair);
     let link = url;
     //    let ll = "https://arweave.net/VGa-4DbXKuPdff0iIWpGUPm-NfhKKku-ai-YmciY0jo";

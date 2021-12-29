@@ -22,6 +22,7 @@ export async function mint(
   configAddress: PublicKey,
   uuid: string,
   rpcUrl: string,
+  candyAddress: PublicKey | null,
 ): Promise<string> {
   const mint = Keypair.generate();
 
@@ -31,11 +32,16 @@ export async function mint(
     userKeyPair.publicKey,
     mint.publicKey,
   );
-
-  const [candyMachineAddress] = await getCandyMachineAddress(
-    configAddress,
-    uuid,
-  );
+  let candyMachineAddress;
+  if (candyAddress == null) {
+    const [candyMachineAddressFrom] = await getCandyMachineAddress(
+      configAddress,
+      uuid,
+    );
+    candyMachineAddress = candyMachineAddressFrom;
+  } else {
+    candyMachineAddress = candyAddress;
+  }
   const candyMachine: any = await anchorProgram.account.candyMachine.fetch(
     candyMachineAddress,
   );
