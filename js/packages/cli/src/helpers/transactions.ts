@@ -14,6 +14,7 @@ import {
 import { getUnixTs, sleep } from './various';
 import { DEFAULT_TIMEOUT } from './constants';
 import log from 'loglevel';
+import base58 from 'bs58';
 
 interface BlockhashAndFeeCalculator {
   blockhash: Blockhash;
@@ -35,6 +36,8 @@ export const sendTransactionWithRetryWithKeypair = async (
   transaction.recentBlockhash = (
     block || (await connection.getRecentBlockhash(commitment))
   ).blockhash;
+
+  log.debug('blockhash = ', transaction.recentBlockhash);
 
   if (includesFeePayer) {
     transaction.setSigners(...signers.map(s => s.publicKey));
@@ -79,10 +82,15 @@ export async function sendSignedTransaction({
   const rawTransaction = signedTransaction.serialize();
   const startTime = getUnixTs();
   let slot = 0;
+
+  log.debug(
+    'Sending transaction = ',
+    base58.encode(signedTransaction.signature),
+  );
   const txid: TransactionSignature = await connection.sendRawTransaction(
     rawTransaction,
     {
-      skipPreflight: true,
+      skipPreflight: false,
     },
   );
 
