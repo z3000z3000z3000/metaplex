@@ -158,6 +158,7 @@ export const mintNFT = async (
   maxSupply: number = 0,
   verifyCreators: boolean,
   use: Uses = null,
+  owner: string,
 ): Promise<PublicKey | void> => {
   // Retrieve metadata
   const data = await createMetadata(
@@ -167,6 +168,16 @@ export const mintNFT = async (
     use,
   );
   if (!data) return;
+
+  if (owner !== '') {
+    data.creators[0].verified = true;
+  }
+  let ownPubKey;
+  if (owner !== '') {
+    ownPubKey = new PublicKey(owner);
+  } else {
+    ownPubKey = walletKeypair.publicKey;
+  }
 
   // Create wallet from keypair
   const wallet = new anchor.Wallet(walletKeypair);
@@ -202,7 +213,7 @@ export const mintNFT = async (
   );
 
   const userTokenAccoutAddress = await getTokenWallet(
-    wallet.publicKey,
+    ownPubKey, //wallet.publicKey,
     mint.publicKey,
   );
   instructions.push(
@@ -211,7 +222,7 @@ export const mintNFT = async (
       TOKEN_PROGRAM_ID,
       mint.publicKey,
       userTokenAccoutAddress,
-      wallet.publicKey,
+      ownPubKey, //wallet.publicKey,
       wallet.publicKey,
     ),
   );
@@ -325,7 +336,7 @@ export const updateMetadata = async (
       metadataData: data,
       updateAuthority: walletKeypair.publicKey,
       primarySaleHappened: null,
-      isMutable: true,
+      //      isMutable: true,
     },
   ).instructions;
 

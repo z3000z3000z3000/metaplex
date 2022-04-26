@@ -32,6 +32,11 @@ programCommand('mint')
     '-nvc, --no-verify-creators',
     'Optional: Disable Verification of Creators',
   )
+  .option(
+    '-r, --rpc-url <string>',
+    'custom rpc url since this is a heavy command',
+  )
+  .option('-o, --owner <pubkey>', '', '')
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   .action(async (directory, cmd) => {
     const {
@@ -43,8 +48,16 @@ programCommand('mint')
       totalUses,
       maxSupply,
       verifyCreators,
+      rpcUrl,
+      owner,
     } = cmd.opts();
-    const solConnection = new web3.Connection(getCluster(env));
+    let solConnection;
+    if (rpcUrl) {
+      console.log('USING CUSTOM URL', rpcUrl);
+      solConnection = new web3.Connection(rpcUrl);
+    } else {
+      solConnection = new web3.Connection(getCluster(env));
+    }
     let structuredUseMethod;
     try {
       structuredUseMethod = parseUses(useMethod, totalUses);
@@ -67,6 +80,7 @@ programCommand('mint')
       supply,
       verifyCreators,
       structuredUseMethod,
+      owner,
     );
   });
 
@@ -82,7 +96,7 @@ programCommand('create-metadata')
   .action(async (directory, cmd) => {
     const { keypair, env, mint, uri, file, verifyCreators } = cmd.opts();
     const mintKey = new PublicKey(mint);
-    const connection = new web3.Connection(web3.clusterApiUrl(env));
+    const connection = new web3.Connection(getCluster(env));
     const walletKeypair = loadWalletKey(keypair);
 
     let data: DataV2;

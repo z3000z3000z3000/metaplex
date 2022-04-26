@@ -137,5 +137,9 @@ export const CLUSTERS: Cluster[] = [
     name: 'devnet',
     url: clusterApiUrl('devnet'),
   },
+  {
+    name: 'localhost',
+    url: 'http://127.0.0.1:8899/',
+  },
 ];
 export const DEFAULT_CLUSTER = CLUSTERS[2];
